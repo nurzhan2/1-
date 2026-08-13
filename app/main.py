@@ -18,6 +18,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from .config import settings
 from .handlers import COMMANDS, BotHandlers
+from .health import start_health_server
 from .logging_utils import install_secret_masking
 from .max_bot import MaxBot
 from .service import ReportService, summary_text
@@ -101,6 +102,10 @@ async def run_check() -> int:
 async def run_service() -> int:
     service = ReportService(settings)
     sched_cfg = settings.schedule
+
+    # Health-эндпоинт для облака (Amvera проверяет containerPort). Локально, если
+    # порт занят/недоступен, просто пропускаем — на работу бота это не влияет.
+    start_health_server(settings.port)
 
     async with MaxBot(settings.max_bot) as bot:
         me = await bot.get_me()

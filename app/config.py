@@ -169,6 +169,8 @@ class Settings:
     schedule: ScheduleSettings = field(default_factory=ScheduleSettings)
     db_path: Path = field(default_factory=lambda: BASE_DIR / _env("DB_PATH", "data/archive.sqlite3"))
     log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO").upper())
+    # Порт health-сервера для облака (Amvera проверяет containerPort). PORT задаёт Amvera.
+    port: int = field(default_factory=lambda: _env_int("PORT", 80))
 
 
 settings = Settings()
