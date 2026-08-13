@@ -197,16 +197,32 @@ ruff check app tools      # линтер
 
 ## Развёртывание на Amvera
 
-Сервис — фоновый воркер (бот + планировщик), внешний HTTP-порт не нужен. Сборка
-идёт по [Dockerfile](Dockerfile) (`python:3.11-slim`, часовой пояс `Europe/Moscow`).
+Сервис — бот + планировщик и лёгкий health-эндпоинт на `containerPort` (его
+проверяет Amvera). Сборка идёт по [Dockerfile](Dockerfile) (`python:3.11-slim`,
+часовой пояс `Europe/Moscow`). Конфигурация — [amvera.yml](amvera.yml).
 
-1. Создать проект в Amvera (кластер Варшава), тип — **из репозитория/Dockerfile**.
-2. Файл [amvera.yml](amvera.yml) уже задаёт постоянный том `/data` (там живут
-   `archive.sqlite3` и готовые отчёты `out/`) и несекретные переменные.
-3. Секреты добавить в панели Amvera → **Переменные окружения** (НЕ в `amvera.yml`
-   и не в git): `MAX_BOT_TOKEN`, при появлении доступов — `LERS_API_KEY`,
-   `ONEC_USERNAME`, `ONEC_PASSWORD` и т. д.
-4. Задеплоить. Проверить логи: должно быть «Бот запущен…» и строка расписания.
+1. Зарегистрироваться/войти на [amvera.ru](https://amvera.ru), создать проект
+   (кластер Варшава), тип — **Docker** / «Через Git».
+2. Залить код одним из способов:
+   * подключить GitHub-репозиторий проекта, **либо**
+   * добавить git-remote Amvera и запушить:
+     ```bash
+     git remote add amvera https://git.amvera.ru/<логин>/<проект>
+     git push amvera main
+     ```
+3. В панели создать **постоянное хранилище** и примонтировать на `/data`
+   (там живут `archive.sqlite3` и готовые отчёты `out/`). Это уже указано в
+   `amvera.yml` (`persistenceMount: /data`).
+4. В панели Amvera → **Переменные окружения** задать секреты (в `amvera.yml` и в
+   git их НЕТ):
+   * `MAX_BOT_TOKEN` — токен бота MAX;
+   * `LERS_API_KEY` — ключ ЛЭРС (при недоступности ключа — `LERS_LOGIN` + `LERS_PASSWORD`);
+   * при выдаче 1С: `ONEC_MODE=odata` (или `http`), `ONEC_BASE_URL`,
+     `ONEC_USERNAME`, `ONEC_PASSWORD`.
+   Остальное (`TZ`, `DB_PATH=/data/archive.sqlite3`, `OUTPUT_DIR=/data/out`,
+   `ONEC_MODE=manual`, `LOG_LEVEL`) уже зашито в образ по умолчанию.
+5. Задеплоить. В логах должно появиться «Health-сервер слушает порт 80»,
+   «Бот запущен…» и строка расписания.
 
 Локальная проверка сборки образа:
 
