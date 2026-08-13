@@ -1,0 +1,8 @@
+{
+  "measurePoints": [
+    {"id": 5001, "nodeId": 1001, "systemType": "Heat", "serviceNumber": 390, "title": "Теплоснабжение"},
+    {"id": 5002, "nodeId": 1001, "systemType": "Gas", "serviceNumber": 391, "title": "Газоснабжение"},
+    {"id": 5003, "nodeId": 1002, "systemType": "Heat", "serviceNumber": 320, "title": "Теплоснабжение"},
+    {"id": 5004, "nodeId": 1003, "systemType": "Heat", "serviceNumber": 190, "title": "Теплоснабжение"}
+  ]
+}

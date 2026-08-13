@@ -1,0 +1,14 @@
+{
+  "dayConsumption": [
+    {
+      "resourceKind": "Gas",
+      "isEmpty": false,
+      "dateTime": "2026-08-03T00:00:00",
+      "values": [
+        {"dataParameter": "V", "value": 100.0, "isBad": false},
+        {"dataParameter": "V_std", "value": 95.0, "isBad": false},
+        {"dataParameter": "P", "value": 2.0, "isBad": false}
+      ]
+    }
+  ]
+}

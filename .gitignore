@@ -1,0 +1,29 @@
+# Секреты — НИКОГДА не коммитить
+.env
+*.env
+!.env.example
+
+# Состояние и артефакты выполнения
+out/
+data/archive.sqlite3
+data/lers_routes.json
+data/costs.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# IDE / ОС
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

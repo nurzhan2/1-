@@ -1,0 +1,10 @@
+httpx==0.27.2
+# Явно фиксируем certifi: используем его набор CA как базу TLS-контекста
+# (поверх него добавляем Russian Trusted CA для *.max.ru).
+certifi>=2024.2.2
+openpyxl==3.1.5
+APScheduler==3.10.4
+python-dotenv==1.0.1
+# База часовых поясов: нужна планировщику (Europe/Moscow) на slim-образах,
+# где системная tzdata отсутствует.
+tzdata==2024.1

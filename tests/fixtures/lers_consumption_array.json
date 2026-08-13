@@ -1,0 +1,18 @@
+{
+  "consumption": [
+    {
+      "date": "2026-08-03",
+      "values": [
+        {"dataParameter": "Q", "value": 1.2},
+        {"dataParameter": "V", "value": 10.0}
+      ]
+    },
+    {
+      "date": "2026-08-03",
+      "resourceKind": "Gas",
+      "values": [
+        {"dataParameter": "V", "value": 500.0}
+      ]
+    }
+  ]
+}

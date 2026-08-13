@@ -1,0 +1,21 @@
+# Конфигурация развёртывания на Amvera (кластер Варшава).
+# Сервис — фоновый воркер (бот MAX + планировщик), без входящего HTTP-порта.
+# Сборка идёт по нашему Dockerfile.
+meta:
+  environment: docker
+build:
+  dockerfile: Dockerfile
+run:
+  # Постоянный том: сюда пишутся SQLite-состояние и готовые отчёты,
+  # чтобы они переживали пересборку и перезапуск контейнера.
+  persistenceMount: /data
+  # Переменные окружения-НЕсекреты можно держать здесь; секреты
+  # (LERS_API_KEY, ONEC_PASSWORD, MAX_BOT_TOKEN) задавать в панели Amvera,
+  # раздел «Переменные окружения», а НЕ в этом файле.
+  variables:
+    TZ: Europe/Moscow
+    TZ_NAME: Europe/Moscow
+    DB_PATH: /data/archive.sqlite3
+    OUTPUT_DIR: /data/out
+    ONEC_MODE: manual
+    LOG_LEVEL: INFO

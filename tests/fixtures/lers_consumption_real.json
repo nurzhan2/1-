@@ -1,0 +1,31 @@
+{
+  "pressureType": "Absolute",
+  "dayConsumption": [
+    {
+      "resourceKind": "Water",
+      "isEmpty": false,
+      "dateTime": "2026-07-01T00:00:00",
+      "intervalSeconds": 0,
+      "attributes": ["CalculatedByDeviceTotals"],
+      "values": [
+        {"dataParameterId": 1, "dataParameter": "T_in", "value": 24.4, "isBad": false},
+        {"dataParameterId": 2, "dataParameter": "T_out", "value": 23.5, "isBad": false},
+        {"dataParameterId": 20, "dataParameter": "V", "value": 596.7, "isBad": false},
+        {"dataParameterId": 22, "dataParameter": "M", "value": 590.0, "isBad": true},
+        {"dataParameterId": 30, "dataParameter": "Q", "value": 0.8, "isBad": false}
+      ]
+    },
+    {
+      "resourceKind": "Gas",
+      "isEmpty": false,
+      "dateTime": "2026-07-01T00:00:00",
+      "intervalSeconds": 0,
+      "attributes": [],
+      "values": [
+        {"dataParameterId": 20, "dataParameter": "V", "value": 3.0, "isBad": false}
+      ]
+    }
+  ],
+  "monthConsumption": [],
+  "hourConsumption": []
+}
