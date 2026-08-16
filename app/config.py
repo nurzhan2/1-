@@ -97,6 +97,11 @@ class OneCSettings:
     manual_file: Path = field(
         default_factory=lambda: BASE_DIR / _env("ONEC_MANUAL_FILE", "data/costs.xlsx")
     )
+    # Таблица соответствий «название затрат в 1С → номер котельной в ЛЭРС».
+    # Заполняется заказчиком один раз; без неё сопоставление идёт по названиям (fuzzy).
+    mapping_file: Path = field(
+        default_factory=lambda: BASE_DIR / _env("ONEC_MAPPING_FILE", "data/costs_mapping.xlsx")
+    )
 
 
 @dataclass

@@ -130,6 +130,55 @@ class OneCClient:
         return result
 
 
+def load_cost_mapping(path) -> dict[str, int]:
+    """Читает таблицу соответствий «название 1С → номер котельной ЛЭРС».
+
+    Ожидает файл с двумя колонками: название статьи затрат в 1С и номер котельной
+    из перечня. Возвращает {нормализованное имя 1С: номер}. Если файла нет —
+    пустой словарь (тогда используется сопоставление по названиям).
+    """
+    p = Path(path)
+    if not p.exists():
+        return {}
+    from openpyxl import load_workbook
+
+    wb = load_workbook(p, data_only=True, read_only=True)
+    mapping: dict[str, int] = {}
+    for ws in wb.worksheets:
+        for row in ws.iter_rows(values_only=True):
+            cells = [c for c in row if c is not None]
+            if len(cells) < 2:
+                continue
+            name = str(cells[0]).strip()
+            number = _to_int(cells[1])
+            if not name or number is None:
+                continue
+            low = name.lower()
+            if "1с" in low or "назван" in low or "котельн" in low:  # строка-заголовок
+                continue
+            mapping[_normalize(name)] = number
+    wb.close()
+    log.info("Таблица соответствий 1С↔ЛЭРС: %d строк из %s", len(mapping), p.name)
+    return mapping
+
+
+def costs_by_number(costs: dict[str, float], mapping: dict[str, int]) -> dict[int, float]:
+    """Раскладывает затраты 1С по номерам котельных через таблицу соответствий."""
+    out: dict[int, float] = {}
+    if not mapping:
+        return out
+    for name, amount in costs.items():
+        number = mapping.get(_normalize(name))
+        if number is not None:
+            out[number] = out.get(number, 0.0) + amount
+    return out
+
+
+def _to_int(value) -> Optional[int]:
+    f = _to_float(value)
+    return int(f) if f is not None else None
+
+
 def _to_float(value) -> Optional[float]:
     if value is None:
         return None

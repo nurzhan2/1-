@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from typing import Iterable, Optional
 
 from .models import DailyRecord, MeasurePoint, ReportData, ReportRow
-from .onec_client import match_costs
+from .onec_client import costs_by_number, match_costs
 
 log = logging.getLogger(__name__)
 
@@ -33,10 +33,17 @@ def build_report(
     costs: dict[str, float],
     start: date,
     end: date,
+    cost_mapping: Optional[dict[str, int]] = None,
 ) -> ReportData:
-    """Формирует итоговую таблицу по ТЗ."""
+    """Формирует итоговую таблицу по ТЗ.
+
+    ``cost_mapping`` — таблица соответствий «имя 1С → номер котельной». Если задана,
+    затраты берутся по номеру котельной; иначе (и как запасной вариант для строк без
+    соответствия) — сопоставление по названию.
+    """
     days_expected = (end - start).days + 1
     report = ReportData(period_start=start, period_end=end)
+    by_number = costs_by_number(costs, cost_mapping) if cost_mapping else {}
 
     for point in points:
         records = daily.get(point.number, [])
@@ -44,12 +51,15 @@ def build_report(
         gas = _sum([r.gas_nm3 for r in records])
         days_with_data = len({r.day for r in records if r.heat_gcal is not None or r.gas_nm3 is not None})
 
+        cost = by_number.get(point.number)
+        if cost is None:
+            cost = match_costs(costs, point.title)
         row = ReportRow(
             title=point.title,
             point_number=point.number,
             heat_gcal=heat,
             gas_nm3=gas,
-            costs_rub=match_costs(costs, point.title),
+            costs_rub=cost,
             days_with_data=days_with_data,
             days_expected=days_expected,
         )

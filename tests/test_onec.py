@@ -73,6 +73,42 @@ async def test_http_mode():
     }
 
 
+def test_cost_mapping_by_number(tmp_path):
+    from app.onec_client import costs_by_number, load_cost_mapping
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Название в 1С", "Номер котельной ЛЭРС"])  # заголовок пропускается
+    ws.append(["Серково ДК", 12])
+    ws.append(["Камешково ЦРБ", 21])
+    path = tmp_path / "map.xlsx"
+    wb.save(path)
+
+    mapping = load_cost_mapping(path)
+    assert len(mapping) == 2
+    by = costs_by_number({"серково дк": 100.0, "Камешково ЦРБ": 50.0, "Прочее": 9.0}, mapping)
+    assert by == {12: 100.0, 21: 50.0}  # «Прочее» без соответствия не попало
+
+
+def test_build_report_prefers_mapping_over_name(tmp_path):
+    from app.models import MeasurePoint
+    from app.onec_client import load_cost_mapping
+    from app.report import build_report
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["1С", "Номер"])
+    ws.append(["Серково ДК", 12])
+    path = tmp_path / "map.xlsx"
+    wb.save(path)
+    mapping = load_cost_mapping(path)
+
+    points = [MeasurePoint(number=12, title="с. Серково, Дом культуры")]
+    costs = {"Серково ДК": 13529.45}  # по названию бы не совпало, а по номеру — да
+    report = build_report(points, {}, costs, START, END, cost_mapping=mapping)
+    assert report.rows[0].costs_rub == 13529.45
+
+
 async def test_unknown_mode_raises():
     settings = make_onec_settings(mode="сломанный")
     with pytest.raises(OneCError):
