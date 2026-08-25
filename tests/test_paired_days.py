@@ -50,13 +50,13 @@ def test_полные_данные_не_режутся():
     assert "исключено суток" not in row.comment
 
 
-def test_кпд_выше_ста_помечается():
-    """Даже при парных сутках завышенный КПД должен быть виден в примечании."""
+def test_кпд_выше_ста_не_выводится():
+    """Невозможное значение не печатается как процент — только объяснение."""
     records = _records([(13, 10.0, 400.0)])
     report = build_report([_point()], {4: records}, {}, date(2026, 1, 13), date(2026, 1, 13))
 
-    assert "ПРОВЕРИТЬ" in report.rows[0].comment
-    assert "выше физически возможного" in report.rows[0].comment
+    assert "КПД не выводится" in report.rows[0].comment
+    assert "физически" in report.rows[0].comment
 
 
 def test_заниженный_кпд_помечается():
