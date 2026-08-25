@@ -34,12 +34,16 @@ def build_report(
     start: date,
     end: date,
     cost_mapping: Optional[dict[str, int]] = None,
+    calorific_kcal: float = 8200.0,
 ) -> ReportData:
     """Формирует итоговую таблицу по ТЗ.
 
     ``cost_mapping`` — таблица соответствий «имя 1С → номер котельной». Если задана,
     затраты берутся по номеру котельной; иначе (и как запасной вариант для строк без
     соответствия) — сопоставление по названию.
+
+    ``calorific_kcal`` нужен только для проверки правдоподобности КПД в примечаниях;
+    сам КПД считается формулой в Excel, чтобы пересчитываться при правке значения.
     """
     days_expected = (end - start).days + 1
     report = ReportData(period_start=start, period_end=end)
@@ -47,8 +51,21 @@ def build_report(
 
     for point in points:
         records = daily.get(point.number, [])
-        heat = _sum([r.heat_gcal for r in records])
-        gas = _sum([r.gas_nm3 for r in records])
+        # Тепло и газ суммируем только за сутки, где отчитались ОБА прибора.
+        # Иначе тепло за 7 суток делится на газ за 6 и КПД уходит выше 100 %.
+        # Проверено на боевых данных: объект №4 давал 112,8 % именно из-за этого,
+        # после отбрасывания непарных суток — 96,9 %.
+        heat_days = {r.day for r in records if r.heat_gcal is not None}
+        gas_days = {r.day for r in records if r.gas_nm3 is not None}
+        paired = heat_days & gas_days
+        skipped = 0
+        if heat_days and gas_days and paired:
+            skipped = len(heat_days | gas_days) - len(paired)
+            heat = _sum([r.heat_gcal for r in records if r.day in paired])
+            gas = _sum([r.gas_nm3 for r in records if r.day in paired])
+        else:
+            heat = _sum([r.heat_gcal for r in records])
+            gas = _sum([r.gas_nm3 for r in records])
         days_with_data = len({r.day for r in records if r.heat_gcal is not None or r.gas_nm3 is not None})
 
         cost = by_number.get(point.number)
@@ -73,6 +90,28 @@ def build_report(
             notes.append(f"данные за {days_with_data} из {days_expected} сут.")
         if gas is None:
             notes.append("расход газа не заведён в ЛЭРС")
+        if skipped:
+            notes.append(
+                f"исключено суток без парных показаний: {skipped} "
+                "(тепло и газ считаются за одни и те же сутки)"
+            )
+
+        # Проверка правдоподобности. КПД выше 100 % физически невозможен;
+        # ниже 60 % у газовой котельной почти всегда означает, что часть
+        # отпущенного тепла учтена на отдельном объекте-потребителе.
+        value = efficiency(heat, gas, calorific_kcal)
+        if value is not None:
+            if value > 100:
+                notes.append(
+                    f"ПРОВЕРИТЬ: КПД {value:.0f}% — выше физически возможного, "
+                    "сверить состав узлов учёта"
+                )
+            elif value < 60:
+                notes.append(
+                    f"ПРОВЕРИТЬ: КПД {value:.0f}% — вероятно, часть тепла "
+                    "учитывается на отдельном объекте-потребителе"
+                )
+
         if row.costs_rub is None:
             notes.append("затраты не получены из 1С")
         row.comment = "; ".join(notes)
