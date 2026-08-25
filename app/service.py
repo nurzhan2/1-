@@ -11,7 +11,7 @@ from .lers_client import LersClient, LersError
 from .models import DailyRecord, ReportData
 from .onec_client import OneCClient, OneCError, load_cost_mapping
 from .points import load_points
-from .report import build_report, month_period, week_period
+from .report import build_report, load_consumers, month_period, week_period
 from .storage import Storage
 
 log = logging.getLogger(__name__)
@@ -64,7 +64,19 @@ class ReportService:
             log.error("1С недоступна: %s", exc)
 
         cost_mapping = load_cost_mapping(self.settings.onec.mapping_file)
-        report = build_report(points, daily, costs, start, end, cost_mapping=cost_mapping)
+        consumers = load_consumers(self.settings.report.points_file.parent / "consumers.csv")
+        if consumers:
+            log.info("Объекты-потребители в зачёт котельных: %s", consumers)
+        report = build_report(
+            points,
+            daily,
+            costs,
+            start,
+            end,
+            cost_mapping=cost_mapping,
+            calorific_kcal=self.settings.report.gas_calorific_kcal,
+            consumers=consumers,
+        )
         report.lers_ok = lers_ok
         report.onec_ok = report.onec_ok and onec_ok
         if not lers_ok:

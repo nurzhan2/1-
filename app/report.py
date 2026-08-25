@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Iterable, Optional
 
 from .models import DailyRecord, MeasurePoint, ReportData, ReportRow
@@ -35,6 +36,7 @@ def build_report(
     end: date,
     cost_mapping: Optional[dict[str, int]] = None,
     calorific_kcal: float = 8200.0,
+    consumers: Optional[dict[int, list[int]]] = None,
 ) -> ReportData:
     """Формирует итоговую таблицу по ТЗ.
 
@@ -51,6 +53,33 @@ def build_report(
 
     for point in points:
         records = daily.get(point.number, [])
+        # Тепло объектов-потребителей, подтверждённых заказчиком, идёт в зачёт
+        # котельной: у части котельных счётчик стоит не на выходе, а у одного
+        # из потребителей, и без сложения КПД занижается.
+        attached: list[int] = []
+        for consumer_number in (consumers or {}).get(point.number, []):
+            extra = daily.get(consumer_number)
+            if extra:
+                records = records + extra
+                attached.append(consumer_number)
+        if attached:
+            merged: dict[date, DailyRecord] = {}
+            for rec in records:
+                slot = merged.get(rec.day)
+                if slot is None:
+                    merged[rec.day] = DailyRecord(
+                        point_number=point.number,
+                        day=rec.day,
+                        heat_gcal=rec.heat_gcal,
+                        gas_nm3=rec.gas_nm3,
+                    )
+                    continue
+                if rec.heat_gcal is not None:
+                    slot.heat_gcal = (slot.heat_gcal or 0.0) + rec.heat_gcal
+                if rec.gas_nm3 is not None:
+                    slot.gas_nm3 = (slot.gas_nm3 or 0.0) + rec.gas_nm3
+            records = [merged[d] for d in sorted(merged)]
+
         # Тепло и газ суммируем только за сутки, где отчитались ОБА прибора.
         # Иначе тепло за 7 суток делится на газ за 6 и КПД уходит выше 100 %.
         # Проверено на боевых данных: объект №4 давал 112,8 % именно из-за этого,
@@ -71,8 +100,18 @@ def build_report(
         cost = by_number.get(point.number)
         if cost is None:
             cost = match_costs(costs, point.title)
+
+        # Префиксом «ъ_» в ЛЭРС помечены выведенные из работы объекты: они не
+        # передают данные. Из отчёта не убираем (они есть в перечне заказчика),
+        # но объясняем пустые ячейки, чтобы это не выглядело сбоем опроса.
+        display_title = point.title
+        title_note = ""
+        if display_title.startswith("ъ_"):
+            display_title = display_title[2:]
+            title_note = "объект помечен в ЛЭРС как архивный (выведен из работы)"
+
         row = ReportRow(
-            title=point.title,
+            title=display_title,
             point_number=point.number,
             heat_gcal=heat,
             gas_nm3=gas,
@@ -82,6 +121,14 @@ def build_report(
         )
 
         notes: list[str] = []
+        if title_note:
+            notes.append(title_note)
+        if attached:
+            notes.append(
+                "в тепло включены объекты-потребители "
+                + ", ".join(f"№{n}" for n in attached)
+                + " (связь по совпадению адреса, требует подтверждения заказчиком)"
+            )
         if point.lers_id is None:
             notes.append("нет доступа к точке в ЛЭРС")
         elif days_with_data == 0:
@@ -129,6 +176,29 @@ def build_report(
             "она заполняется в месячном отчёте."
         )
     return report
+
+
+def load_consumers(path: Path) -> dict[int, list[int]]:
+    """Читает таблицу «котельная → её объекты-потребители» (CSV, разделитель ;).
+
+    Заполняется только по подтверждению заказчика: единого правила нет —
+    у одних котельных счётчик потребителя это отдельная нагрузка, у других
+    субсчётчик уже учтённого тепла.
+    """
+    if not path or not Path(path).exists():
+        return {}
+    result: dict[int, list[int]] = {}
+    for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or line.lower().startswith("boiler_number"):
+            continue
+        parts = line.split(";")
+        if len(parts) < 2 or not parts[0].strip().isdigit():
+            continue
+        numbers = [int(x) for x in parts[1].replace(" ", "").split(",") if x.isdigit()]
+        if numbers:
+            result[int(parts[0].strip())] = numbers
+    return result
 
 
 def efficiency(
