@@ -425,7 +425,7 @@ def _parse_consumption(payload: Any, point_number: int) -> list[DailyRecord]:
             if record.gas_nm3 is None:
                 record.gas_nm3 = _pick(values, VOLUME_KEYS)
         else:
-            record.heat_gcal = _pick(values, HEAT_KEYS)
+            record.heat_gcal = _pick_heat(values)
             record.volume_m3 = _pick(values, VOLUME_KEYS)
 
         if record.heat_gcal is None and record.gas_nm3 is None and record.volume_m3 is None:
@@ -433,6 +433,35 @@ def _parse_consumption(payload: Any, point_number: int) -> list[DailyRecord]:
         records.append(record)
 
     return _merge_by_day(records)
+
+
+def _pick_heat(values: dict[str, float]) -> Optional[float]:
+    """Выбирает фактически потреблённое тепло.
+
+    Узел учёта может отдавать три параметра сразу: Q_in (подано в контур),
+    Q_out (возвращено) и Q_delta (потреблено = Q_in − Q_out). Для КПД нужен
+    именно Q_delta: на объекте №39 за январь 2025 Q_in давал 145 Гкал/сут
+    против 14,8 по Q_delta, из-за чего КПД выходил 949 % вместо 92 %.
+
+    Порядок: Q_delta → разность Q_in и Q_out → Q → Q_in.
+    """
+    normalized = {k.lower().replace(" ", ""): v for k, v in values.items()}
+
+    delta = normalized.get("q_delta") or normalized.get("qdelta")
+    if delta is not None:
+        return delta
+
+    q_in, q_out = normalized.get("q_in"), normalized.get("q_out")
+    if q_in is not None and q_out is not None:
+        return q_in - q_out
+
+    for key in ("q", "q1", "heat", "энергия", "гкал"):
+        if normalized.get(key) is not None:
+            return normalized[key]
+
+    if q_in is not None:
+        return q_in
+    return _pick(values, HEAT_KEYS)
 
 
 def _flatten_values(raw: dict[str, Any]) -> dict[str, float]:
